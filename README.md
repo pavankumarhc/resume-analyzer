@@ -28,5 +28,8 @@ streamlit run app.py
 - Skills detected
 - Resume score
 
+## Live Demo
+[https://your-app-link.streamlit.app](https://resume-analyzer-u7s5ndm29y5tfhbbth4mmx.streamlit.app/)
+
 ## 👨‍💻 Author
 Pavan Kumar H C
