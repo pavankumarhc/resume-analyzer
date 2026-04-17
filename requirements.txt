@@ -1,2 +1,7 @@
-PyPDF2
 streamlit
+PyPDF2
+pandas
+scikit-learn
+nltk
+numpy
+matplotlib
