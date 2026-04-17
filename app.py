@@ -1,32 +1,31 @@
 import streamlit as st
 import PyPDF2
 import re
+import matplotlib.pyplot as plt
+from collections import Counter
 
-# ---------------- Page Settings ----------------
-st.set_page_config(page_title="AI Resume Analyzer", page_icon="📄", layout="wide")
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(
+    page_title="AI Resume Analyzer",
+    page_icon="📄",
+    layout="wide"
+)
 
-# ---------------- Title ----------------
+# ---------------- TITLE ----------------
 st.title("📄 AI Resume Analyzer")
-st.write("Upload your resume and compare it with a Job Description.")
+st.write("Upload your Resume PDF and get smart analysis instantly 🚀")
 
-# ---------------- Sidebar ----------------
-st.sidebar.header("About")
-st.sidebar.write("This tool analyzes resumes, detects skills, and checks job match score.")
+# ---------------- FILE UPLOAD ----------------
+uploaded_file = st.file_uploader("Upload Resume PDF", type=["pdf"])
 
-# ---------------- File Upload ----------------
-uploaded_file = st.file_uploader("📂 Upload your Resume (PDF)", type="pdf")
-
-# ---------------- Job Description ----------------
-jd_text = st.text_area("📋 Paste Job Description Here")
-
-# ---------------- Skills List ----------------
+# ---------------- SKILLS DATABASE ----------------
 skills_list = [
-    "Python", "Java", "C++", "SQL", "Machine Learning",
-    "Data Science", "HTML", "CSS", "JavaScript",
-    "React", "Node.js", "Flask", "Django"
+    "Python", "Java", "C++", "SQL", "HTML", "CSS", "JavaScript",
+    "React", "Node.js", "Flask", "Django", "Machine Learning",
+    "Data Science", "AWS", "Git", "Excel", "Power BI"
 ]
 
-# ---------------- If File Uploaded ----------------
+# ---------------- MAIN ----------------
 if uploaded_file is not None:
 
     # Read PDF
@@ -34,97 +33,165 @@ if uploaded_file is not None:
     text = ""
 
     for page in pdf_reader.pages:
-        extracted = page.extract_text()
-        if extracted:
-            text += extracted
+        text += page.extract_text()
 
-    # ---------------- Resume Content ----------------
-    st.subheader("📜 Resume Content")
-    st.write(text)
+    text_lower = text.lower()
 
-    # ---------------- Word Count ----------------
+    # ---------------- WORD COUNT ----------------
     word_count = len(text.split())
 
-    # ---------------- Email & Phone ----------------
-    email = re.findall(r'\S+@\S+', text)
-    phone = re.findall(r'\d{10}', text)
-
-    # ---------------- Skills Detection ----------------
+    # ---------------- SKILLS FOUND ----------------
     found_skills = []
 
     for skill in skills_list:
-        if skill.lower() in text.lower():
+        if skill.lower() in text_lower:
             found_skills.append(skill)
 
-    # ---------------- Resume Score ----------------
-    score = min(len(found_skills) * 10, 100)
+    skills_found_count = len(found_skills)
+    missing_skills = len(skills_list) - skills_found_count
 
-    # ---------------- Dashboard ----------------
+    # ---------------- CONTACT DETAILS ----------------
+    emails = re.findall(r'[\w\.-]+@[\w\.-]+', text)
+    phones = re.findall(r'\d{10}', text.replace(" ", ""))
+
+    # ---------------- SCORE ----------------
+    score = 0
+
+    if word_count > 150:
+        score += 25
+    elif word_count > 80:
+        score += 15
+
+    if skills_found_count >= 8:
+        score += 40
+    elif skills_found_count >= 5:
+        score += 25
+    elif skills_found_count >= 2:
+        score += 15
+
+    if emails:
+        score += 15
+
+    if phones:
+        score += 20
+
+    if score > 100:
+        score = 100
+
+    # ---------------- RESUME CONTENT ----------------
+    st.subheader("📜 Resume Content")
+    st.write(text)
+
+    # ---------------- METRICS ----------------
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("📝 Word Count", word_count)
-    col2.metric("💡 Skills Found", len(found_skills))
-    col3.metric("📊 Resume Score", f"{score}/100")
+    with col1:
+        st.metric("📝 Word Count", word_count)
 
-    st.progress(score)
+    with col2:
+        st.metric("💡 Skills Found", skills_found_count)
 
-    # ---------------- Contact Info ----------------
+    with col3:
+        st.metric("📊 Resume Score", f"{score}/100")
+
+    st.progress(score / 100)
+
+    # ---------------- CONTACT ----------------
     st.subheader("📞 Contact Details")
 
-    if email:
-        st.write("📧 Email:", email[0])
+    if emails:
+        st.success(f"Email: {emails[0]}")
     else:
-        st.write("❌ Email not found")
+        st.error("Email not found")
 
-    if phone:
-        st.write("📱 Phone:", phone[0])
+    if phones:
+        st.success(f"Phone: {phones[0]}")
     else:
-        st.write("❌ Phone not found")
+        st.error("Phone not found")
 
-    # ---------------- Skills Found ----------------
+    # ---------------- SKILLS ----------------
     st.subheader("💡 Skills Found")
-    st.write(found_skills)
 
-    # ---------------- Suggestions ----------------
+    if found_skills:
+        st.write(found_skills)
+    else:
+        st.warning("No matching skills found")
+
+    # ---------------- SUGGESTIONS ----------------
     st.subheader("📢 Suggestions")
 
-    if score < 40:
-        st.error("Add more technical skills, projects, and certifications.")
-    elif score < 70:
-        st.warning("Good resume. Add more experience and achievements.")
+    if skills_found_count < 5:
+        st.warning("Add more technical skills.")
+
+    if word_count < 100:
+        st.warning("Resume is too short. Add projects and experience.")
+
+    if not phones:
+        st.warning("Add phone number.")
+
+    if not emails:
+        st.warning("Add email.")
+
+    if score >= 80:
+        st.success("Excellent Resume 🚀")
+    elif score >= 60:
+        st.info("Good Resume 👍")
     else:
-        st.success("Excellent resume! Ready to apply.")
+        st.error("Needs Improvement ❌")
 
-    # ---------------- Job Description Match ----------------
-    if jd_text:
+    # ---------------- GRAPH 1 ----------------
+    st.subheader("📊 Skills Analysis")
 
-        resume_words = set(text.lower().split())
-        jd_words = set(jd_text.lower().split())
+    labels = ["Found Skills", "Missing Skills"]
+    values = [skills_found_count, missing_skills]
 
-        common_words = resume_words.intersection(jd_words)
+    fig1, ax1 = plt.subplots(figsize=(6, 3))
+    ax1.bar(labels, values)
+    ax1.set_title("Skills Comparison")
+    st.pyplot(fig1)
 
-        if len(jd_words) > 0:
-            match_score = int((len(common_words) / len(jd_words)) * 100)
-        else:
-            match_score = 0
+    # ---------------- GRAPH 2 ----------------
+    st.subheader("📈 Resume Composition")
 
-        st.subheader("🎯 Job Match Score")
-        st.metric("Match Percentage", f"{match_score}%")
-        st.progress(match_score)
+    useful_words = len(found_skills) * 10
+    other_words = max(word_count - useful_words, 1)
 
-        # Missing Keywords
-        missing = jd_words - resume_words
+    fig2, ax2 = plt.subplots(figsize=(5, 3))
+    ax2.pie(
+        [useful_words, other_words],
+        labels=["Skills", "Other"],
+        autopct="%1.1f%%",
+        startangle=90
+    )
+    ax2.axis("equal")
+    st.pyplot(fig2)
 
-        st.subheader("❌ Missing Keywords")
-        st.write(list(missing)[:20])
+    # ---------------- GRAPH 3 ----------------
+    st.subheader("📌 Top Keywords")
 
-        # Final Suggestion
-        if match_score < 50:
-            st.error("Low match. Add missing keywords to improve ATS chances.")
-        elif match_score < 75:
-            st.warning("Moderate match. Improve resume for better chances.")
-        else:
-            st.success("Strong match for this job role!")
+    stop_words = [
+        'in', 'the', 'and', 'is', 'of', 'to', 'a', 'for',
+        'on', 'with', 'at', 'by', 'an', 'or'
+    ]
+
+    words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+
+    filtered_words = [
+        word for word in words
+        if word not in stop_words and len(word) > 2
+    ]
+
+    common_words = Counter(filtered_words).most_common(5)
+
+    if common_words:
+        word_names = [i[0] for i in common_words]
+        word_counts = [i[1] for i in common_words]
+
+        fig3, ax3 = plt.subplots(figsize=(6, 3))
+        ax3.bar(word_names, word_counts)
+        ax3.set_title("Most Used Words")
+        ax3.tick_params(axis='x', labelrotation=20)
+        st.pyplot(fig3)
 
 else:
-    st.info("Please upload your resume PDF to begin.")
+    st.info("Please upload your resume PDF.")
